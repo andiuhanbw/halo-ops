@@ -25,6 +25,7 @@ restore() {
     fi
   done
   docker compose up -d || true
+  docker compose exec -T nginx nginx -s reload || true
 }
 
 trap 'restore; exit 1' ERR
@@ -37,6 +38,10 @@ done
 docker compose config -q
 docker compose pull
 docker compose up -d
+
+# Nginx config is bind-mounted; reload it explicitly after config changes.
+docker compose exec -T nginx nginx -t
+docker compose exec -T nginx nginx -s reload
 
 for _ in {1..30}; do
   if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && \
