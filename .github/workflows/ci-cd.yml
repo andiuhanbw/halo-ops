@@ -32,11 +32,11 @@ jobs:
           sudo nginx -t
 
       - name: Validate Prometheus rules
-        run: >
-          docker run --rm
-          -v "$PWD/prometheus/rules:/rules:ro"
-          quay.io/prometheus/prometheus:v2.32.1
-          promtool check rules /rules/halo-alerts.yml
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y prometheus
+          sudo systemctl stop prometheus || true
+          promtool check rules prometheus/rules/halo-alerts.yml
 
       - name: Shellcheck
         run: |
