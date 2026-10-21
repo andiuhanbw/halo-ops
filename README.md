@@ -54,6 +54,7 @@ flowchart LR
 
 ```text
 halo-ops/
+├── .github/workflows/ci-cd.yml
 ├── compose.yaml
 ├── .env.example
 ├── alertmanager/
