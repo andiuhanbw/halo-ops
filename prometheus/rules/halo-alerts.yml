@@ -1,0 +1,32 @@
+groups:
+  - name: halo-ops
+    rules:
+      - alert: HaloAppDown
+        expr: probe_success{job="blackbox", service="halo-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: halo
+        annotations:
+          summary: "Halo 应用探活失败"
+          description: "Halo readiness probe 连续 1 分钟失败，应用可能不可用。"
+
+      - alert: HaloEdgeDown
+        expr: probe_success{job="blackbox", service="halo-edge"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: halo
+        annotations:
+          summary: "Halo 入口探活失败"
+          description: "Nginx /healthz 探活连续 1 分钟失败，入口可能不可用。"
+
+      - alert: HaloProbeSlow
+        expr: probe_duration_seconds{job="blackbox", service=~"halo-.*"} > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: halo
+        annotations:
+          summary: "Halo 探活延迟过高"
+          description: "Halo 探活耗时超过 2 秒，持续 5 分钟。"

@@ -1,0 +1,19 @@
+route:
+  receiver: ntfy
+  group_by: ['alertname', 'service']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: ntfy
+    webhook_configs:
+      - url: 'https://ntfy.sh/REPLACE_WITH_YOUR_TOPIC'
+        send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      alertname: HaloAppDown
+    target_match:
+      alertname: HaloEdgeDown
+    equal: ['service']

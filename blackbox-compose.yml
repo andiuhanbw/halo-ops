@@ -1,0 +1,28 @@
+name: monitoring-extras
+
+services:
+  blackbox-exporter:
+    image: quay.io/prometheus/blackbox-exporter:v0.29.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+    ports:
+      - "127.0.0.1:9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    mem_limit: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - prom-stack_default
+      - halo-ops_halo_net
+
+networks:
+  prom-stack_default:
+    external: true
+  halo-ops_halo_net:
+    external: true

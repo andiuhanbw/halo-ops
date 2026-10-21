@@ -1,0 +1,8 @@
+.env
+data/
+backups/
+alertmanager/alertmanager.yml
+*.log
+*.dump
+*.tar.gz
+.DS_Store
