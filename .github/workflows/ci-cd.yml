@@ -1,0 +1,75 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose
+        run: docker compose --env-file .env.example config -q
+
+      - name: Validate nginx
+        run: >
+          docker run --rm
+          -v "$PWD/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro"
+          public.ecr.aws/docker/library/nginx:1.28-alpine
+          nginx -t
+
+      - name: Validate Prometheus rules
+        run: >
+          docker run --rm
+          -v "$PWD/prometheus/rules:/rules:ro"
+          quay.io/prometheus/prometheus:v2.32.1
+          promtool check rules /rules/halo-alerts.yml
+
+      - name: Shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck -S error scripts/*.sh
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s' "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release and deploy
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          RELEASE="/opt/halo-ops/.deploy/releases/${GITHUB_SHA}"
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+
+          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "mkdir -p $RELEASE/nginx"
+
+          scp $SSH_OPTS compose.yaml "$SSH_USER@$SSH_HOST:$RELEASE/compose.yaml"
+          scp $SSH_OPTS nginx/default.conf "$SSH_USER@$SSH_HOST:$RELEASE/nginx/default.conf"
+          scp $SSH_OPTS scripts/deploy.sh "$SSH_USER@$SSH_HOST:/opt/halo-ops/scripts/deploy.sh"
+
+          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "chmod +x /opt/halo-ops/scripts/deploy.sh && /opt/halo-ops/scripts/deploy.sh $RELEASE"
