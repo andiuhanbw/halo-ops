@@ -60,6 +60,12 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Validate deploy key
+        run: |
+          test -s ~/.ssh/deploy_key
+          grep -q 'BEGIN OPENSSH PRIVATE KEY' ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null
+
       - name: Upload release and deploy
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
