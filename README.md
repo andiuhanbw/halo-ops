@@ -42,7 +42,7 @@ flowchart LR
 
 - 一键拉起 Halo + PostgreSQL + Nginx
 - Nginx 反向代理、上传大小、安全响应头、访问日志
-- 主机、容器、应用、入口四层可观测性
+- 主机、应用 readiness、入口健康三层监控，结合 Docker healthcheck
 - Halo 可用性、探活延迟、HTTP 状态码面板
 - Halo 应用/入口故障告警，支持 resolved 通知
 - PostgreSQL 逻辑备份 + Halo 数据目录备份
