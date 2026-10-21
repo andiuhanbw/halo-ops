@@ -48,6 +48,7 @@ flowchart LR
 - PostgreSQL 逻辑备份 + Halo 数据目录备份
 - 临时库恢复验证，不覆盖生产库
 - 一次真实的 Nginx 故障演练：firing → 通知 → 恢复 → resolved
+- GitHub Actions 配置校验、SSH 发布、健康检查、失败回滚
 
 ## Repository Layout
 
@@ -60,6 +61,9 @@ halo-ops/
 ├── blackbox/
 │   └── blackbox.yml
 ├── blackbox-compose.yml
+├── docs/
+│   ├── runbook.md
+│   └── incident-2026-10-20-edge-down.md
 ├── grafana/
 │   └── halo-probe.json
 ├── nginx/
@@ -109,6 +113,39 @@ docker compose restart nginx
 ```bash
 curl -sS http://127.0.0.1:8080/healthz
 curl -sS http://127.0.0.1:8080/actuator/health/readiness
+```
+
+## CI/CD
+
+每次 push 到 `main`，GitHub Actions 执行：
+
+1. **validate**
+   - `docker compose config`
+   - `nginx -t`
+   - `promtool check rules`
+   - `shellcheck`
+2. **deploy**
+   - SSH 上传 release 到 `/opt/halo-ops/.deploy/releases/<sha>`
+   - 备份当前 `compose.yaml` 和 `nginx/default.conf`
+   - 执行 `scripts/deploy.sh`
+   - `nginx -t` + `nginx -s reload`
+   - 检查 `/healthz` 和 Halo readiness
+   - 失败时恢复上一版配置并重新拉起
+
+需要的 Repository Secrets：
+
+```text
+SSH_HOST
+SSH_USER
+SSH_PRIVATE_KEY_B64
+SSH_KNOWN_HOSTS
+```
+
+部署标记：
+
+```bash
+curl -sI http://127.0.0.1:8080/healthz | grep -i x-ops-lab
+# X-Ops-Lab: halo-ops
 ```
 
 ## Monitoring
@@ -212,8 +249,8 @@ LATEST="${LATEST%/}"
 
 ## Roadmap
 
-- [ ] GitHub Actions：配置校验 + 发布 + 健康检查 + 自动回滚
+- [x] GitHub Actions：配置校验 + 发布 + 健康检查 + 自动回滚
+- [x] runbook、故障复盘
 - [ ] 备份定时任务与异地副本
 - [ ] Prometheus / Grafana / Alertmanager 版本固定与升级
-- [ ] 完整 runbook、架构决策记录和故障复盘
 - [ ] 域名与 HTTPS（备案允许后）
